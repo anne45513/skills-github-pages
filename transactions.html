@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Transaction History</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #faf7f0;
+        }
+
+        .brand {
+            text-align: center;
+            padding: 20px;
+            background-color: #4a4947;
+            color: #d8d2c2;
+        }
+
+        .container {
+            padding: 20px;
+        }
+
+        .date-group {
+            background-color: #e6e3da;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .date-group h3 {
+            margin-top: 0;
+        }
+
+        .view-btn {
+            background-color: #4CAF50;
+            color: white;
+            padding: 8px 12px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+
+        .view-btn:hover {
+            background-color: #45a049;
+        }
+
+        .back-btn {
+            background-color: #d8d2c2;
+            color: #4a4947;
+            padding: 10px 15px;
+            border: limegreen;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+
+        .back-btn:hover {
+            background-color: #b17457;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="brand">
+        <h1>YNGKYT Transaction History</h1>
+    </div>
+
+    <div class="container" id="transaction-history">
+        <!-- Transaction history grouped by date will be inserted here -->
+    </div>
+
+    <button class="back-btn" onclick="window.history.back()">Back</button>
+
+    <script>
+        function loadGroupedTransactions() {
+            const transactions = JSON.parse(localStorage.getItem('transactions')) || [];
+            const historyContainer = document.getElementById('transaction-history');
+
+            // Group transactions by date
+            const groupedTransactions = transactions.reduce((groups, transaction) => {
+                const date = new Date(transaction.timestamp).toLocaleDateString(); // Group by date
+                if (!groups[date]) {
+                    groups[date] = [];
+                }
+                groups[date].push(transaction);
+                return groups;
+            }, {});
+
+            // Sort dates in descending order (latest date first)
+            const sortedDates = Object.keys(groupedTransactions).sort((a, b) => {
+                return new Date(b) - new Date(a); // Compare dates
+            });
+
+            // Display each date group
+            sortedDates.forEach(date => {
+                const dateGroupDiv = document.createElement('div');
+                dateGroupDiv.classList.add('date-group');
+
+                dateGroupDiv.innerHTML = `
+                    <h3>Date: ${date}</h3>
+                    <button class="view-btn" onclick="viewTransactions('${date}')">View Transactions</button>
+                `;
+
+                historyContainer.appendChild(dateGroupDiv);
+            });
+        }
+
+        function viewTransactions(date) {
+            // Save the selected date in localStorage
+            localStorage.setItem('selectedDate', date);
+
+            // Redirect to a new page for that date
+            window.location.href = 'transactions-by-date.html';
+        }
+
+        // Load grouped transactions when the page is loaded
+        window.onload = loadGroupedTransactions;
+    </script>
+</body>
+</html>

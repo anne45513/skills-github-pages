@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Inventory Management</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #faf7f0;
+        }
+        .brand {
+            text-align: center;
+            padding: 20px;
+            background-color: #4a4947;
+            color: #d8d2c2;
+        }
+        .container {
+            display: flex;
+            justify-content: space-between;
+            padding: 20px;
+        }
+        .inventory-manager, .inventory-list {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        .inventory-manager {
+            width: 33%;
+        }
+        .inventory-list {
+            width: 65%;
+        }
+        .input-group {
+            margin-bottom: 15px;
+        }
+        .input-group label {
+            display: block;
+            margin-bottom: 5px;
+        }
+        .input-group input {
+            width: 100%;
+            padding: 8px;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+        }
+        .btn {
+            background-color: #d8d2c2;
+            color: #4a4947;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+        .btn:hover {
+            background-color: #b17457;
+            color: white;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        table, th, td {
+            border: 1px solid #ddd;
+        }
+        th, td {
+            padding: 10px;
+            text-align: left;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+        .actions button {
+            background-color: #dc3545;
+            color: white;
+            padding: 5px 10px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-left: 5px;
+        }
+        .actions button:hover {
+            background-color: #c82333;
+        }
+    </style>
+</head>
+<body>
+    <div class="brand">
+        <h1>Inventory Management</h1>
+    </div>
+    <div class="container">
+        <div class="inventory-manager">
+            <h2>Manage Inventory</h2>
+            <div class="input-group">
+                <label for="item-description">Item Description</label>
+                <input type="text" id="item-description" placeholder="Item Description" required>
+            </div>
+            <div class="input-group">
+                <label for="key-code">Key Code</label>
+                <input type="text" id="key-code" placeholder="Key Code" required>
+            </div>
+            <div class="input-group">
+                <label for="original-price">Original Price</label>
+                <input type="number" id="original-price" placeholder="Original Price" required>
+            </div>
+            <div class="input-group">
+                <label for="selling-price">Selling Price</label>
+                <input type="number" id="selling-price" placeholder="Selling Price" required>
+            </div>
+            <div class="input-group">
+                <label for="stock-quantity">Stock Quantity</label>
+                <input type="number" id="stock-quantity" placeholder="Stock Quantity" required>
+            </div>
+            <button class="btn" onclick="addItemToInventory()">Add Item</button>
+            <button class="btn" onclick="window.location.href = 'index.html';">Back</button>
+        </div>
+        <div class="inventory-list">
+            <h2>Inventory List</h2>
+            <div class="input-group">
+                <label for="search-bar">Search Items</label>
+                <input type="text" id="search-bar" placeholder="Search by description or key code" onkeyup="searchItems()">
+            </div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Description</th>
+                        <th>Key Code</th>
+                        <th>Original Price</th>
+                        <th>Selling Price</th>
+                        <th>Stock</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="inventory-list">
+                    <!-- Inventory items will be inserted here -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const inputs = document.querySelectorAll('.input-group input');
+
+            inputs.forEach((input, index) => {
+                input.addEventListener('keydown', (event) => {
+                    if (event.key === 'Enter') {
+                        event.preventDefault();
+                        const nextInput = inputs[index + 1];
+                        if (nextInput) {
+                            nextInput.focus();
+                        } else {
+                            addItemToInventory();
+                        }
+                    }
+                });
+            });
+
+            updateInventoryList();
+        });
+
+        const inventory = JSON.parse(localStorage.getItem('inventory')) || [];
+
+        function addItemToInventory() {
+            const description = document.getElementById('item-description').value.trim();
+            const keyCode = document.getElementById('key-code').value.trim();
+            const originalPrice = parseFloat(document.getElementById('original-price').value.trim());
+            const sellingPrice = parseFloat(document.getElementById('selling-price').value.trim());
+            const stockQuantity = parseInt(document.getElementById('stock-quantity').value.trim(), 10);
+
+            if (description && keyCode && !isNaN(originalPrice) && !isNaN(sellingPrice) && !isNaN(stockQuantity)) {
+                const newItem = { description, keyCode, originalPrice, sellingPrice, quantity: stockQuantity };
+                inventory.push(newItem);
+                localStorage.setItem('inventory', JSON.stringify(inventory));
+                updateInventoryList();
+                clearInputFields();
+
+                // Focus back to the 'Item Description' input field
+                document.getElementById('item-description').focus();
+            } else {
+                alert('Please fill out all fields correctly.');
+            }
+        }
+
+        function clearInputFields() {
+            document.getElementById('item-description').value = '';
+            document.getElementById('key-code').value = '';
+            document.getElementById('original-price').value = '';
+            document.getElementById('selling-price').value = '';
+            document.getElementById('stock-quantity').value = '';
+        }
+
+        function updateInventoryList() {
+            const list = document.getElementById('inventory-list');
+            list.innerHTML = '';
+
+            // Sort inventory by item description in alphabetical order
+            inventory.sort((a, b) => a.description.localeCompare(b.description));
+
+            inventory.forEach((item, index) => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${item.description}</td>
+                    <td>${item.keyCode}</td>
+                    <td>${item.originalPrice.toFixed(2)}</td>
+                    <td>${item.sellingPrice.toFixed(2)}</td>
+                    <td>${item.quantity}</td>
+                    <td class="actions">
+                        <button onclick="editItem(${index})">Edit</button>
+                        <button onclick="deleteItem(${index})">Delete</button>
+                    </td>
+                `;
+                list.appendChild(row);
+            });
+        }
+
+        function searchItems() {
+            const searchTerm = document.getElementById('search-bar').value.toLowerCase();
+
+            const filteredInventory = inventory.filter(item => 
+                item.description.toLowerCase().includes(searchTerm) || 
+                item.keyCode.toLowerCase().includes(searchTerm)
+            );
+
+            displayFilteredInventory(filteredInventory);
+        }
+
+        function displayFilteredInventory(filteredInventory) {
+            const list = document.getElementById('inventory-list');
+            list.innerHTML = '';
+
+            filteredInventory.forEach((item, index) => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${item.description}</td>
+                    <td>${item.keyCode}</td>
+                    <td>${item.originalPrice.toFixed(2)}</td>
+                    <td>${item.sellingPrice.toFixed(2)}</td>
+                    <td>${item.quantity}</td>
+                    <td class="actions">
+                        <button onclick="editItem(${index})">Edit</button>
+                        <button onclick="deleteItem(${index})">Delete</button>
+                    </td>
+                `;
+                list.appendChild(row);
+            });
+        }
+
+        function editItem(index) {
+            const item = inventory[index];
+            document.getElementById('item-description').value = item.description;
+            document.getElementById('key-code').value = item.keyCode;
+            document.getElementById('original-price').value = item.originalPrice;
+            document.getElementById('selling-price').value = item.sellingPrice;
+            document.getElementById('stock-quantity').value = item.quantity;
+
+            inventory.splice(index, 1);
+            localStorage.setItem('inventory', JSON.stringify(inventory));
+            updateInventoryList();
+        }
+
+        function deleteItem(index) {
+            inventory.splice(index, 1);
+            localStorage.setItem('inventory', JSON.stringify(inventory));
+            updateInventoryList();
+        }
+    </script>
+</body>
+</html>

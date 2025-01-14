@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>POS Calculator</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #faf7f0;
+        }
+
+        .brand {
+            text-align: center;
+            padding: 20px;
+            background-color: #4a4947;
+            color: #d8d2c2;
+        }
+
+        .container {
+            display: flex;
+            justify-content: space-between;
+            padding: 20px;
+        }
+
+        .calculator, .summary {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .calculator {
+            width: 35%;
+        }
+
+        .summary {
+            width: 58%;
+        }
+
+        .input-group {
+            margin-bottom: 15px;
+        }
+
+        .input-group label {
+            display: block;
+            margin-bottom: 5px;
+        }
+
+        .input-group input {
+            width: 100%;
+            padding: 8px;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+        }
+
+        .btn {
+            background-color: #d8d2c2;
+            color: #4a4947;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+
+        .btn:hover {
+            background-color: #b17457;
+            color: white;
+        }
+
+        #order-summary div {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
+
+        #order-summary button {
+            margin-left: 10px;
+            background-color: transparent;
+            padding: 10px 15px;
+            border-radius: 4px;
+            border: none;
+            cursor: pointer;
+        }
+
+        #order-summary button:hover {
+            color: white;
+            background-color: red;
+        }
+
+        .add-amount {
+            width: 80px;
+            padding: 5px;
+            margin-left: 10px;
+        }
+
+        datalist {
+            max-height: 100px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="brand">
+        <h1>YNGKYT</h1>
+    </div>
+
+    <div class="container">
+        <div class="calculator">
+            <h2>Add Item</h2>
+            <div class="input-group">
+                <label for="cashier-name">Cashier's Name</label>
+                <input type="text" id="cashier-name" placeholder="Cashier's Name" required>
+            </div>
+            <div class="input-group">
+                <label for="item-keycode">Item Key Code</label>
+                <input type="text" id="item-keycode" placeholder="Item Key Code" list="keycode-suggestions" required>
+                <datalist id="keycode-suggestions"></datalist>
+            </div>
+            <div class="input-group">
+                <label for="product-quantity">Product Quantity</label>
+                <input type="number" id="product-quantity" placeholder="Quantity" step="0.01" required>
+            </div>
+            <div class="input-group">
+                <label for="item-discount">Discount Amount</label>
+                <input type="number" id="item-discount" placeholder="Discount Amount" step="0.01" min="0">
+            </div>
+            <button class="btn" onclick="addItem()">Add</button>
+            <button class="btn" onclick="cancelOrder()">Cancel Order</button>
+            <button class="btn" onclick="window.location.href = 'inventory.html';">Manage Inventory</button>
+            <button class="btn" onclick="window.location.href = 'expense.html';">Expenses</button>
+        </div>
+
+        <div class="summary">
+            <h2>Order Summary</h2>
+            <div id="order-summary"></div>
+            <h3 id="total">Total: 0.00</h3>
+            <div class="input-group">
+                <label for="customer-money">Customer's Money</label>
+                <input type="number" id="customer-money" placeholder="Enter amount" oninput="calculateChange()" required>
+            </div>
+            <h3 id="change">Change: 0.00</h3>
+            <button class="btn" onclick="saveAllTransactions()">Save Order</button>
+            <button class="btn" onclick="window.location.href = 'transactions.html';">History</button>
+        </div>
+    </div>
+
+    <script>
+        let total = 0;
+        const orderedItems = [];
+        let cashierName = '';
+        const inventory = JSON.parse(localStorage.getItem('inventory')) || [];
+        const transactions = JSON.parse(localStorage.getItem('transactions')) || [];
+
+        function populateKeyCodeSuggestions() {
+            const keycodeSuggestions = document.getElementById('keycode-suggestions');
+            keycodeSuggestions.innerHTML = '';
+
+            inventory.forEach(item => {
+                const option = document.createElement('option');
+                option.value = item.keyCode;
+                keycodeSuggestions.appendChild(option);
+            });
+        }
+
+        window.onload = () => {
+            populateKeyCodeSuggestions();
+
+            const inputs = document.querySelectorAll('input');
+            inputs.forEach((input, index) => {
+                input.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        const nextInput = inputs[index + 1];
+                        if (input.id === 'product-quantity') {
+                            addItem();
+                        }
+                        if (nextInput) {
+                            nextInput.focus();
+                        }
+                    }
+                });
+            });
+        };
+
+        function addItem() {
+            const keyCode = document.getElementById('item-keycode').value.trim();
+            const quantity = parseFloat(document.getElementById('product-quantity').value.trim());
+            const discount = parseFloat(document.getElementById('item-discount').value.trim()) || 0;
+            cashierName = document.getElementById('cashier-name').value.trim();
+
+            if (quantity <= 0 || isNaN(quantity)) {
+                alert('Quantity must be greater than zero!');
+                document.getElementById('product-quantity').value = '';
+                document.getElementById('product-quantity').focus();
+                return;
+            }
+
+            const item = inventory.find(item => item.keyCode === keyCode);
+
+            if (!item) {
+                alert('Invalid or non-existing item key code!');
+                document.getElementById('item-keycode').value = '';
+                document.getElementById('item-keycode').focus();
+                return;
+            }
+
+            const priceBeforeDiscount = item.sellingPrice * quantity;
+            const priceAfterDiscount = priceBeforeDiscount - discount;
+
+            if (priceAfterDiscount < 0) {
+                alert('Discount cannot exceed the price.');
+                return;
+            }
+
+            total += priceAfterDiscount;
+            orderedItems.push({ 
+                description: item.description, 
+                quantity, 
+                price: priceAfterDiscount.toFixed(2), 
+                discount: discount.toFixed(2),
+                additionalAmount: 0
+            });
+
+            item.quantity -= quantity;
+            localStorage.setItem('inventory', JSON.stringify(inventory));
+
+            updateOrderSummary();
+
+            document.getElementById('item-keycode').value = '';
+            document.getElementById('product-quantity').value = '';
+            document.getElementById('item-discount').value = '0';
+
+            setTimeout(() => {
+                document.getElementById('item-keycode').focus();
+            }, 50);
+        }
+
+        function updateOrderSummary() {
+            const summary = document.getElementById('order-summary');
+            summary.innerHTML = '';
+
+            orderedItems.forEach((item, index) => {
+                const itemElement = document.createElement('div');
+                itemElement.innerHTML = `
+                    ${item.description}: ${item.quantity} x ${item.price} (Discount: ${item.discount})
+                    <input type="number" class="add-amount" id="additional-${index}" value="${item.additionalAmount}" oninput="addAdditionalAmount(${index})" step="0.01" />
+                    <button onclick="deleteItem(${index})">Delete</button>
+                `;
+                summary.appendChild(itemElement);
+            });
+
+            document.getElementById('total').textContent = `Total: ${total.toFixed(2)}`;
+        }
+
+        function addAdditionalAmount(index) {
+            const additionalAmount = parseFloat(document.getElementById(`additional-${index}`).value) || 0;
+            orderedItems[index].additionalAmount = additionalAmount;
+            updateTotalWithAdditionalAmount();
+        }
+
+        function updateTotalWithAdditionalAmount() {
+            total = 0;
+            orderedItems.forEach(item => {
+                const itemTotal = (parseFloat(item.price) + (item.additionalAmount || 0)) * item.quantity;
+                total += itemTotal;
+            });
+            document.getElementById('total').textContent = `Total: ${total.toFixed(2)}`;
+        }
+
+        function deleteItem(index) {
+            const item = orderedItems[index];
+            total -= parseFloat(item.price) * item.quantity;
+            orderedItems.splice(index, 1);
+
+            const inventoryItem = inventory.find(invItem => invItem.description === item.description);
+            if (inventoryItem) {
+                inventoryItem.quantity += item.quantity;
+                localStorage.setItem('inventory', JSON.stringify(inventory));
+            }
+
+            updateOrderSummary();
+        }
+
+        function calculateChange() {
+            const customerMoney = parseFloat(document.getElementById('customer-money').value);
+            const change = customerMoney - total;
+            document.getElementById('change').textContent = `Change: ${change.toFixed(2)}`;
+        }
+
+        function saveAllTransactions() {
+            const transaction = {
+                cashierName,
+                items: orderedItems,
+                total: total.toFixed(2),
+                timestamp: new Date().toISOString()
+            };
+
+            transactions.push(transaction);
+            localStorage.setItem('transactions', JSON.stringify(transactions));
+
+            alert('Transaction saved!');
+
+            orderedItems.length = 0;
+            total = 0;
+            document.getElementById('customer-money').value = '';
+            document.getElementById('change').textContent = 'Change: 0.00';
+            updateOrderSummary();
+        }
+
+        function cancelOrder() {
+            orderedItems.length = 0;
+            total = 0;
+            document.getElementById('customer-money').value = '';
+            document.getElementById('change').textContent = 'Change: 0.00';
+            updateOrderSummary();
+        }
+    </script>
+</body>
+</html>

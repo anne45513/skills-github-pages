@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><a href="index.html">Transactions for Selected Date</a></title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #faf7f0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .brand {
+            text-align: center;
+            padding: 20px;
+            background-color: #4a4947;
+            color: #d8d2c2;
+        }
+
+        .container {
+            padding: 20px;
+            flex-grow: 1;
+        }
+
+        .transaction, .sales-summary {
+            background-color: #e6e3da;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+        }
+
+        .transaction h4, .sales-summary h4 {
+            margin-top: 0;
+        }
+
+        .back-btn, .print-btn {
+            background-color: #d8d2c2;
+            color: #4a4947;
+            padding: 10px 15px;
+            border: limegreen;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+
+        .back-btn:hover, .print-btn:hover, .delete-btn:hover {
+            background-color: #b17457;
+            color: white;
+        }
+
+        .delete-btn {
+            background-color: #d8d2c2;
+            color: #4a4947;
+            padding: 10px 15px;
+            border: limegreen;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+
+        .delete-container {
+            padding: 20px;
+            text-align: right;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+
+        table, th, td {
+            border: 1px solid #ddd;
+        }
+
+        th, td {
+            padding: 8px;
+            text-align: left;
+        }
+
+        th {
+            background-color: #f2f2f2;
+        }
+    </style>
+</head>
+<body>
+    <div class="brand">
+        <h1>Transactions for Selected Date</h1>
+    </div>
+    <div class="container">
+        <button class="back-btn" onclick="window.location.href='index.html'">Home</button>
+        <button class="back-btn" onclick="window.history.back()">Back to Date Selection</button>
+        
+        <div id="selected-date-transactions">
+            <!-- Transactions will be dynamically inserted here -->
+        </div>
+    </div>
+
+    <div class="delete-container">
+        <button class="delete-btn" onclick="window.location.href = 'inventory.html';">Access Inventory</button>
+        <button class="delete-btn" onclick="deleteTransactionsForSelectedDate()">Delete Transactions</button>
+    </div>
+
+    <script>
+        function loadTransactionsForSelectedDate() {
+            const selectedDate = localStorage.getItem('selectedDate');
+            const transactions = JSON.parse(localStorage.getItem('transactions')) || [];
+            const inventoryData = JSON.parse(localStorage.getItem('inventory')) || [];
+
+            const inventoryMap = inventoryData.reduce((acc, item) => {
+                acc[item.description] = item;
+                return acc;
+            }, {});
+
+            const selectedTransactions = transactions.filter(transaction => {
+                const transactionDate = new Date(transaction.timestamp).toLocaleDateString();
+                return transactionDate === selectedDate;
+            });
+
+            selectedTransactions.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+            const transactionsContainer = document.getElementById('selected-date-transactions');
+
+            if (selectedTransactions.length > 0) {
+                let totalCosting = 0;
+                let totalDiscounts = 0;
+                let grandTotal = 0; // Total of all selling prices
+                let totalOriginalPrice = 0; // Total of all original prices
+                const itemsSold = {};
+
+                selectedTransactions.forEach(transaction => {
+                    const transactionDiv = document.createElement('div');
+                    transactionDiv.classList.add('transaction');
+                    transactionDiv.innerHTML = ` 
+                        <h4>Cashier: ${transaction.cashierName}</h4>
+                        <p><strong>Total:</strong> ${transaction.total}</p>
+                        <p><strong>Timestamp:</strong> ${new Date(transaction.timestamp).toLocaleString()}</p>
+                        <h5>Items:</h5>
+                        <ul>
+                            ${transaction.items.map(item => {
+                                let itemDetails = `<li>${item.description}: ${item.quantity} x ${item.price}`;
+                                if (item.discount > 0) {
+                                    itemDetails += ` (Discount: ${item.discount})`;
+                                    totalDiscounts += item.discount * item.quantity;
+                                }
+                                itemDetails += '</li>';
+                                return itemDetails;
+                            }).join('')}
+                        </ul>
+                        <button class="print-btn" onclick='printIndividualTransaction(${JSON.stringify(transaction)})'>Print</button>
+                    `;
+                    transactionsContainer.appendChild(transactionDiv);
+
+                    transaction.items.forEach(item => {
+                        const description = item.description;
+                        if (!itemsSold[description]) {
+                            itemsSold[description] = { description: item.description, quantity: 0 };
+                        }
+                        itemsSold[description].quantity += item.quantity;
+                    });
+                });
+
+                Object.keys(itemsSold).forEach(description => {
+                    const item = itemsSold[description];
+                    const inventoryItem = inventoryMap[description] || { originalPrice: 0, sellingPrice: 0 };
+                    const originalTotal = inventoryItem.originalPrice * item.quantity;
+                    const sellingTotal = inventoryItem.sellingPrice * item.quantity;
+
+                    totalOriginalPrice += originalTotal; // Add to total original prices
+                    grandTotal += sellingTotal; // Add to total selling prices
+                });
+
+                // Deduct total discounts from grand total
+                grandTotal -= totalDiscounts;
+
+                // Calculate total profit (Grand total - Total Costing)
+                const totalProfit = grandTotal - totalOriginalPrice;
+
+                const salesSummary = document.createElement('div');
+                salesSummary.classList.add('sales-summary');
+                salesSummary.innerHTML = ` 
+                    <h4>Grand Total for ${selectedDate}: ${grandTotal.toFixed(2)}</h4>
+                    <h4>Total Costing: ${totalOriginalPrice.toFixed(2)}</h4>
+                    <h4>Total Profit: ${totalProfit.toFixed(2)}</h4>
+                    <h4>Total Discounts Given: ${totalDiscounts.toFixed(2)}</h4>
+                    
+                    <h5>Items Sold:</h5>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Item Description</th>
+                                <th>Quantity Sold</th>
+                                <th>Original Price (Total)</th>
+                                <th>Selling Price (Total)</th>
+                                <th>Profit (Total)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${Object.keys(itemsSold).map(description => {
+                                const item = itemsSold[description];
+                                const inventoryItem = inventoryMap[description] || { originalPrice: 0, sellingPrice: 0 };
+                                const originalTotal = inventoryItem.originalPrice * item.quantity;
+                                const sellingTotal = inventoryItem.sellingPrice * item.quantity;
+                                const profitTotal = sellingTotal - originalTotal;
+
+                                return ` 
+                                    <tr>
+                                        <td>${item.description}</td>
+                                        <td>${item.quantity}</td>
+                                        <td>${originalTotal.toFixed(2)}</td>
+                                        <td>${sellingTotal.toFixed(2)}</td>
+                                        <td>${profitTotal.toFixed(2)}</td>
+                                    </tr>
+                                `;
+                            }).join('')}
+                        </tbody>
+                    </table>
+                `;
+                transactionsContainer.appendChild(salesSummary);
+            } else {
+                transactionsContainer.innerHTML = '<p>No transactions for this date.</p>';
+            }
+        }
+
+        function printIndividualTransaction(transaction) {
+            const printWindow = window.open('', '', 'height=600,width=800');
+            printWindow.document.write('<html><head><title>Transaction Receipt</title></head><body>');
+            printWindow.document.write('<h2>Transaction Receipt</h2>');
+            printWindow.document.write('<p>Date: ' + new Date(transaction.timestamp).toLocaleString() + '</p>');
+            printWindow.document.write('<p>Cashier: ' + transaction.cashierName + '</p>');
+            printWindow.document.write('<div><h3>Order Summary:</h3>');
+            
+            transaction.items.forEach(item => {
+                printWindow.document.write('<p>' + item.description + ': ' + item.quantity + ' x ' + item.price);
+                if (item.discount > 0) {
+                    printWindow.document.write(' (Discount: ' + item.discount + ')');
+                }
+                printWindow.document.write('</p>');
+            });
+
+            printWindow.document.write('<h3>Total: ' + transaction.total + '</h3></div>');
+            printWindow.document.write('</body></html>');
+            printWindow.document.close();
+            printWindow.print();
+        }
+
+        function deleteTransactionsForSelectedDate() {
+            const selectedDate = localStorage.getItem('selectedDate');
+            let transactions = JSON.parse(localStorage.getItem('transactions')) || [];
+
+            transactions = transactions.filter(transaction => {
+                const transactionDate = new Date(transaction.timestamp).toLocaleDateString();
+                return transactionDate !== selectedDate;
+            });
+
+            localStorage.setItem('transactions', JSON.stringify(transactions));
+
+            document.getElementById('selected-date-transactions').innerHTML = '<p>Transactions for this date have been deleted.</p>';
+
+            alert(`Transactions for ${selectedDate} have been deleted.`);
+        }
+
+        window.onload = loadTransactionsForSelectedDate;
+    </script>
+</body>
+</html>

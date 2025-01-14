@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Expense Tracker</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #faf7f0;
+        }
+
+        .brand {
+            text-align: center;
+            padding: 20px;
+            background-color: #4a4947;
+            color: #d8d2c2;
+        }
+
+        .container {
+            display: flex;
+            justify-content: space-between;
+            padding: 20px;
+        }
+
+        .calculator, .summary {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .calculator {
+            width: 35%;
+        }
+
+        .summary {
+            width: 58%;
+        }
+
+        .input-group {
+            margin-bottom: 15px;
+        }
+
+        .input-group label {
+            display: block;
+            margin-bottom: 5px;
+        }
+
+        .input-group input {
+            width: 100%;
+            padding: 8px;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+        }
+
+        .btn {
+            background-color: #d8d2c2;
+            color: #4a4947;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+
+        .btn:hover {
+            background-color: #b17457;
+            color: white;
+        }
+
+        #expense-summary div {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
+
+        #expense-summary button {
+            margin-left: 10px;
+            background-color: transparent;
+            padding: 10px 15px;
+            border-radius: 4px;
+            border: none;
+            cursor: pointer;
+        }
+
+        #expense-summary button:hover {
+            color: white;
+            background-color: red;
+        }
+
+        .add-amount {
+            width: 80px;
+            padding: 5px;
+            margin-left: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="brand">
+        <h1>YNGKYT - Expense Tracker</h1>
+    </div>
+
+    <div class="container">
+        <div class="calculator">
+            <h2>Add Expense</h2>
+            <div class="input-group">
+                <label for="expense-description">Expense Description</label>
+                <input type="text" id="expense-description" placeholder="Expense Description" required>
+            </div>
+            <div class="input-group">
+                <label for="expense-amount">Amount</label>
+                <input type="number" id="expense-amount" placeholder="Amount" step="0.01" required>
+            </div>
+            <div class="input-group">
+                <label for="expense-category">Category</label>
+                <input type="text" id="expense-category" placeholder="Category" required>
+            </div>
+            <button class="btn" onclick="addExpense()">Add</button>
+            <button class="btn" onclick="cancelExpense()">Cancel</button>
+            <button class="btn" onclick="window.location.href = 'index.html';">Back to Index</button> <!-- Back to Index Button -->
+            <button class="btn" onclick="window.location.href = 'expense-history.html';">View Expenses by Date</button> <!-- New Button -->
+        </div>
+
+        <div class="summary">
+            <h2>Expense Summary</h2>
+            <div id="expense-summary"></div>
+            <h3 id="total-expenses">Total Expenses: 0.00</h3>
+            <button class="btn" onclick="saveExpenses()">Save Expenses</button>
+        </div>
+    </div>
+
+    <script>
+        let totalExpenses = 0;
+        const expenses = JSON.parse(localStorage.getItem('expenses')) || [];
+
+        // Focus next input when "Enter" is pressed
+        document.getElementById('expense-description').addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                document.getElementById('expense-amount').focus();
+            }
+        });
+
+        document.getElementById('expense-amount').addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                document.getElementById('expense-category').focus();
+            }
+        });
+
+        document.getElementById('expense-category').addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                addExpense(); // Add the expense when "Enter" is pressed on the last input field
+            }
+        });
+
+        function addExpense() {
+            const description = document.getElementById('expense-description').value.trim();
+            const amount = parseFloat(document.getElementById('expense-amount').value.trim());
+            const category = document.getElementById('expense-category').value.trim();
+
+            if (!description || !amount || !category) {
+                alert('Please fill all fields.');
+                return;
+            }
+
+            const expense = {
+                description,
+                amount: amount.toFixed(2),
+                category
+            };
+
+            expenses.push(expense);
+            totalExpenses += amount;
+
+            localStorage.setItem('expenses', JSON.stringify(expenses));
+
+            // Create a new HTML page for the transaction
+            createExpensePage(expense);
+
+            updateExpenseSummary();
+            clearFields();
+        }
+
+        function createExpensePage(expense) {
+            // Create an individual transaction page (expense-transaction.html)
+            const transactionHtml = `
+                <!DOCTYPE html>
+                <html lang="en">
+                <head>
+                    <meta charset="UTF-8">
+                    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                    <title>Expense Transaction</title>
+                </head>
+                <body>
+                    <h1>Expense Transaction</h1>
+                    <p><strong>Description:</strong> ${expense.description}</p>
+                    <p><strong>Amount:</strong> ${expense.amount}</p>
+                    <p><strong>Category:</strong> ${expense.category}</p>
+                    <button onclick="window.history.back()">Back</button>
+                </body>
+                </html>
+            `;
+
+            const blob = new Blob([transactionHtml], { type: 'text/html' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `expense-${expense.description.replace(/\s+/g, '-').toLowerCase()}.html`; // Save with a dynamic name
+            link.click();
+        }
+
+        function updateExpenseSummary() {
+            const summary = document.getElementById('expense-summary');
+            summary.innerHTML = ''; // Clear previous content
+
+            expenses.forEach((expense, index) => {
+                const expenseElement = document.createElement('div');
+                expenseElement.innerHTML = `
+                    ${expense.description} - ${expense.amount} (${expense.category})
+                    <button onclick="deleteExpense(${index})">Delete</button>
+                    <a href="expense-${expense.description.replace(/\s+/g, '-').toLowerCase()}.html">View Transaction</a>
+                `;
+                summary.appendChild(expenseElement);
+            });
+
+            // Update the total at the bottom
+            document.getElementById('total-expenses').textContent = `Total Expenses: ${totalExpenses.toFixed(2)}`;
+        }
+
+        function deleteExpense(index) {
+            const expense = expenses[index];
+            totalExpenses -= parseFloat(expense.amount); // Subtract the expense from total
+            expenses.splice(index, 1);
+
+            localStorage.setItem('expenses', JSON.stringify(expenses));
+
+            updateExpenseSummary();
+        }
+
+        function saveExpenses() {
+            alert('Expenses saved!');
+            expenses.length = 0;
+            totalExpenses = 0;
+            updateExpenseSummary();
+        }
+
+        function cancelExpense() {
+            clearFields();
+        }
+
+        function clearFields() {
+            document.getElementById('expense-description').value = '';
+            document.getElementById('expense-amount').value = '';
+            document.getElementById('expense-category').value = '';
+        }
+    </script>
+</body>
+</html>
